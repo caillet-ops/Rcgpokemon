@@ -1,0 +1,35 @@
+:root{--red:#cc0000;--bg:#f4f4f6;--card:#fff;--txt:#222;--mut:#777}
+@media (prefers-color-scheme:dark){:root{--bg:#16161a;--card:#24242b;--txt:#eee;--mut:#999}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+header{background:var(--red);color:#fff;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.3rem}
+header h1{margin:0;font-size:1.2rem}
+#totals{font-size:.85rem}
+nav{display:flex;position:sticky;top:0;background:var(--card);box-shadow:0 1px 4px #0003;z-index:5}
+nav button{flex:1;padding:.7rem .2rem;border:0;background:none;color:var(--txt);font-size:.9rem;border-bottom:3px solid transparent}
+nav button.active{border-color:var(--red);font-weight:700}
+main{padding:1rem;max-width:1000px;margin:auto}
+.tab{display:none}.tab.active{display:block}
+button,.btn,.photo-btn{background:var(--red);color:#fff;border:0;border-radius:8px;padding:.6rem 1rem;font-size:1rem;cursor:pointer;display:inline-block}
+.photo-btn{display:block;text-align:center;padding:1.2rem;font-size:1.1rem}
+button.sec{background:#888}
+input,select{padding:.6rem;border:1px solid #8885;border-radius:8px;font-size:1rem;background:var(--card);color:var(--txt);min-width:0}
+#search-form{display:flex;gap:.5rem;margin:1rem 0;flex-wrap:wrap}
+#search-form input{flex:1 1 140px}
+.toolbar{display:flex;gap:.5rem;margin-bottom:1rem}.toolbar input{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem}
+.c{background:var(--card);border-radius:10px;padding:.5rem;box-shadow:0 1px 4px #0002;display:flex;flex-direction:column;gap:.3rem;font-size:.82rem}
+.c img{width:100%;border-radius:6px;cursor:pointer}
+.c b{font-size:.9rem}.c .m{color:var(--mut)}
+.c .price{font-weight:700;color:#1a7f37}
+.qty{display:flex;align-items:center;justify-content:space-between;gap:.3rem}
+.qty button{padding:.2rem .7rem;font-size:1.1rem}
+.badge{background:#f5a623;color:#000;border-radius:99px;padding:0 .5rem;font-weight:700}
+#preview{max-width:240px;display:block;margin:1rem auto;border-radius:8px}
+.status,.hint{color:var(--mut);font-size:.9rem}
+.row{display:flex;gap:.5rem;flex-wrap:wrap}
+h2{font-size:1rem;margin:1.5rem 0 .5rem}
+dialog{border:0;border-radius:12px;max-width:420px;width:92%;background:var(--card);color:var(--txt)}
+dialog img{width:100%;border-radius:8px}
+dialog table{width:100%;font-size:.85rem;border-collapse:collapse}
+dialog td{padding:.2rem .3rem;border-bottom:1px solid #8883}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#cc0000">
+<title>Minha Coleção Pokémon</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>🎴 Coleção Pokémon</h1>
+  <div id="totals"></div>
+</header>
+
+<nav>
+  <button data-tab="scan" class="active">📷 Adicionar</button>
+  <button data-tab="collection">📚 Coleção</button>
+  <button data-tab="dupes">♻️ Repetidas</button>
+  <button data-tab="settings">⚙️ Mais</button>
+</nav>
+
+<main>
+  <section id="tab-scan" class="tab active">
+    <label class="photo-btn">
+      📷 Tirar / escolher foto da carta
+      <input type="file" id="photo" accept="image/*" capture="environment" hidden>
+    </label>
+    <img id="preview" alt="" hidden>
+    <p id="status" class="status"></p>
+
+    <form id="search-form">
+      <input id="q-name" placeholder="Nome (ex: Pikachu)" autocomplete="off">
+      <input id="q-number" placeholder="Nº (ex: 25/165)" autocomplete="off" inputmode="text">
+      <button type="submit">Buscar</button>
+    </form>
+    <div id="results" class="grid"></div>
+  </section>
+
+  <section id="tab-collection" class="tab">
+    <div class="toolbar">
+      <input id="filter" type="search" placeholder="Filtrar por nome, set, raridade…">
+      <select id="sort">
+        <option value="added">Mais recentes</option>
+        <option value="name">Nome</option>
+        <option value="price">Preço ↓</option>
+        <option value="set">Set</option>
+      </select>
+    </div>
+    <div id="collection" class="grid"></div>
+  </section>
+
+  <section id="tab-dupes" class="tab">
+    <p class="hint">Cartas que você tem em mais de 1 cópia. "Extras" = cópias além da primeira (candidatas a troca/venda).</p>
+    <div id="dupes" class="grid"></div>
+  </section>
+
+  <section id="tab-settings" class="tab">
+    <h2>Preços</h2>
+    <button id="refresh-prices">🔄 Atualizar preços de toda a coleção</button>
+    <p id="refresh-status" class="status"></p>
+
+    <h2>Backup</h2>
+    <div class="row">
+      <button id="export-json">⬇️ Exportar JSON</button>
+      <button id="export-csv">⬇️ Exportar CSV</button>
+      <label class="btn">⬆️ Importar JSON<input type="file" id="import-json" accept=".json" hidden></label>
+    </div>
+
+    <h2>API key (opcional)</h2>
+    <p class="hint">Funciona sem chave, mas com limite menor. Chave grátis em <a href="https://dev.pokemontcg.io" target="_blank" rel="noopener">dev.pokemontcg.io</a>.</p>
+    <input id="api-key" placeholder="X-Api-Key" autocomplete="off">
+    <h2>Moeda de exibição</h2>
+    <select id="currency">
+      <option value="usd">USD (TCGplayer)</option>
+      <option value="eur">EUR (Cardmarket)</option>
+    </select>
+  </section>
+</main>
+
+<dialog id="dlg"></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
