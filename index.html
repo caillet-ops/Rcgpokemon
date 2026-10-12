@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#cc0000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Minha Coleção Pokémon</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -17,7 +22,8 @@
   <button data-tab="scan" class="active">📷 Adicionar</button>
   <button data-tab="collection">📚 Coleção</button>
   <button data-tab="dupes">♻️ Repetidas</button>
-  <button data-tab="settings">⚙️ Mais</button>
+  <button data-tab="missing">🔍 Faltantes</button>
+  <button data-tab="settings">⚙️ Conta</button>
 </nav>
 
 <main>
@@ -55,7 +61,22 @@
     <div id="dupes" class="grid"></div>
   </section>
 
+  <section id="tab-missing" class="tab">
+    <div class="toolbar">
+      <select id="set-select"><option>Carregando sets…</option></select>
+    </div>
+    <div class="row opts">
+      <label><input type="checkbox" id="m-all"> Mostrar também as que tenho</label>
+      <label><input type="checkbox" id="m-secret"> Incluir secretas</label>
+    </div>
+    <div id="missing-summary" class="summary"></div>
+    <div id="missing" class="grid"></div>
+  </section>
+
   <section id="tab-settings" class="tab">
+    <h2>Conta e sincronização</h2>
+    <div id="account"></div>
+
     <h2>Preços</h2>
     <button id="refresh-prices">🔄 Atualizar preços de toda a coleção</button>
     <p id="refresh-status" class="status"></p>
@@ -80,7 +101,12 @@
 
 <dialog id="dlg"></dialog>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
+<script>if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))</script>
 </body>
 </html>

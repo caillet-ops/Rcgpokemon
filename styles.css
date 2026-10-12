@@ -33,3 +33,11 @@ dialog{border:0;border-radius:12px;max-width:420px;width:92%;background:var(--ca
 dialog img{width:100%;border-radius:8px}
 dialog table{width:100%;font-size:.85rem;border-collapse:collapse}
 dialog td{padding:.2rem .3rem;border-bottom:1px solid #8883}
+nav button{font-size:.78rem;padding:.7rem .1rem}
+.opts{margin:.5rem 0;font-size:.9rem}.opts label{display:flex;gap:.3rem;align-items:center}
+.summary{background:var(--card);border-radius:10px;padding:.7rem;margin:.5rem 0 1rem;font-size:.9rem}
+.bar{height:8px;background:#8884;border-radius:4px;overflow:hidden;margin-top:.4rem}.bar i{display:block;height:100%;background:#1a7f37}
+.c.owned img{filter:grayscale(1);opacity:.45}
+#account{display:flex;flex-direction:column;gap:.5rem;max-width:360px}
+#account .row{align-items:center}
+.toolbar select{flex:1}

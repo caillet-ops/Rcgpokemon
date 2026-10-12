@@ -47,17 +47,20 @@ const price = c => c[settings.currency];
 const money = v => v == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: settings.currency.toUpperCase() }).format(v);
 
 // ---------- coleção ----------
+const live = () => Object.values(collection).filter(c => c.qty > 0);
+const clean = o => JSON.parse(JSON.stringify(o));
+function touch(id) { collection[id].modified = Date.now(); save(); pushCard(id); }
 function addCard(apiCard_) {
   const s = snapshot(apiCard_);
   const cur = collection[s.id];
   collection[s.id] = cur ? { ...cur, ...s, qty: cur.qty + 1, added: cur.added } : { ...s, qty: 1, added: Date.now() };
-  save(); renderAll();
+  touch(s.id); renderAll();
   return collection[s.id].qty;
 }
 function setQty(id, n) {
-  if (n <= 0) { if (!confirm('Remover esta carta da coleção?')) return; delete collection[id]; }
+  if (n <= 0) { if (!confirm('Remover esta carta da coleção?')) return; collection[id].qty = 0; }  // qty 0 = removida (sincroniza a remoção)
   else collection[id].qty = n;
-  save(); renderAll();
+  touch(id); renderAll();
 }
 
 // ---------- render ----------
@@ -75,7 +78,7 @@ function cardHtml(c, { dupe } = {}) {
 }
 function renderCollection() {
   const f = $('#filter').value.trim().toLowerCase(), sort = $('#sort').value;
-  let list = Object.values(collection).filter(c => !f || [c.name, c.setName, c.rarity, c.number].join(' ').toLowerCase().includes(f));
+  let list = live().filter(c => !f || [c.name, c.setName, c.rarity, c.number].join(' ').toLowerCase().includes(f));
   const by = {
     added: (a, b) => b.added - a.added, name: (a, b) => a.name.localeCompare(b.name),
     price: (a, b) => (price(b) ?? -1) - (price(a) ?? -1), set: (a, b) => a.setName.localeCompare(b.setName) || a.number.localeCompare(b.number, undefined, { numeric: true }),
@@ -83,17 +86,17 @@ function renderCollection() {
   $('#collection').innerHTML = list.sort(by).map(c => cardHtml(c)).join('') || '<p class="hint">Nenhuma carta ainda. Use a aba Adicionar.</p>';
 }
 function renderDupes() {
-  const list = Object.values(collection).filter(c => c.qty > 1).sort((a, b) => b.qty - a.qty);
+  const list = live().filter(c => c.qty > 1).sort((a, b) => b.qty - a.qty);
   $('#dupes').innerHTML = list.map(c => cardHtml(c, { dupe: true })).join('') || '<p class="hint">Sem repetidas por enquanto.</p>';
 }
 function renderTotals() {
-  const all = Object.values(collection);
+  const all = live();
   const total = all.reduce((s, c) => s + c.qty, 0);
   const val = all.reduce((s, c) => s + (price(c) ?? 0) * c.qty, 0);
   const extraVal = all.reduce((s, c) => s + (price(c) ?? 0) * (c.qty - 1), 0);
   $('#totals').textContent = `${all.length} únicas · ${total} no total · ${money(val)} · extras ${money(extraVal)}`;
 }
-function renderAll() { renderCollection(); renderDupes(); renderTotals(); }
+function renderAll() { renderCollection(); renderDupes(); renderTotals(); if (typeof renderMissing === 'function') renderMissing(); }
 
 // ---------- busca ----------
 function renderResults(cards) {
@@ -168,7 +171,7 @@ async function scanPhoto(file) {
 
 // ---------- detalhes ----------
 function showDetail(id) {
-  const c = collection[id]; if (!c) return;
+  const c = collection[id]; if (!c || c.qty < 1) return;
   const d = $('#dlg');
   d.innerHTML = `<img src="${esc(c.imgLarge || c.img)}" alt="">
     <h3>${esc(c.name)} <small>×${c.qty}</small></h3>
@@ -188,11 +191,11 @@ function download(name, text, type) {
   a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
 }
 async function refreshPrices() {
-  const ids = Object.keys(collection), st = $('#refresh-status');
+  const ids = live().map(c => c.id), st = $('#refresh-status');
   let ok = 0;
   for (const [i, id] of ids.entries()) {
     st.textContent = `Atualizando ${i + 1}/${ids.length}…`;
-    try { collection[id] = { ...collection[id], ...snapshot(await apiCard(id)) , qty: collection[id].qty, added: collection[id].added }; ok++; } catch {}
+    try { const n = snapshot(await apiCard(id)); Object.assign(collection[id], { usd: n.usd, eur: n.eur, updated: n.updated, tcgUrl: n.tcgUrl, cmUrl: n.cmUrl }); pushCard(id, true); ok++; } catch {}
   }
   save(); renderAll(); st.textContent = `✅ ${ok}/${ids.length} cartas atualizadas.`;
 }
@@ -220,22 +223,158 @@ $('#refresh-prices').addEventListener('click', refreshPrices);
 $('#export-json').addEventListener('click', () => download('colecao-pokemon.json', JSON.stringify(collection, null, 2), 'application/json'));
 $('#export-csv').addEventListener('click', () => {
   const rows = [['id', 'nome', 'set', 'numero', 'raridade', 'qtd', 'usd', 'eur']];
-  Object.values(collection).forEach(c => rows.push([c.id, c.name, c.setName, c.number, c.rarity, c.qty, c.usd ?? '', c.eur ?? '']));
+  live().forEach(c => rows.push([c.id, c.name, c.setName, c.number, c.rarity, c.qty, c.usd ?? '', c.eur ?? '']));
   download('colecao-pokemon.csv', rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'), 'text/csv');
 });
 $('#import-json').addEventListener('change', async e => {
   try {
     const data = JSON.parse(await e.target.files[0].text());
     for (const c of Object.values(data)) {
-      if (!c?.id || !Number.isInteger(c.qty)) continue;
+      if (!c?.id || !Number.isInteger(c.qty) || c.qty < 1) continue;
       const cur = collection[c.id];
       collection[c.id] = cur ? { ...cur, qty: cur.qty + c.qty } : c;
+      touch(c.id);
     }
-    save(); renderAll(); alert('Importado! Quantidades somadas às existentes.');
+    renderAll(); alert('Importado! Quantidades somadas às existentes.');
   } catch { alert('Arquivo inválido.'); }
 });
 $('#api-key').value = settings.apiKey; $('#currency').value = settings.currency;
 $('#api-key').addEventListener('change', e => { settings.apiKey = e.target.value.trim(); save(); });
 $('#currency').addEventListener('change', e => { settings.currency = e.target.value; save(); renderAll(); });
 
+
+// ---------- login + sincronização (Firebase) ----------
+const cloud = { user: null, col: null, unsub: null, ready: false };
+const modOf = c => c.modified || c.added || 0;
+
+function pushCard(id, pricesOnly) {
+  if (!cloud.user || !collection[id]) return;
+  const c = collection[id];
+  const data = pricesOnly ? { usd: c.usd ?? null, eur: c.eur ?? null, updated: c.updated } : c;
+  cloud.col.doc(id).set(clean(data), { merge: true }).catch(e => console.warn('sync', e));
+}
+function initCloud() {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || typeof firebase === 'undefined') { renderAccount(); return; }
+  firebase.initializeApp(cfg);
+  cloud.auth = firebase.auth(); cloud.db = firebase.firestore();
+  cloud.db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  cloud.auth.onAuthStateChanged(onUser);
+  cloud.ready = true; renderAccount();
+}
+function onUser(u) {
+  cloud.unsub?.(); cloud.unsub = null; cloud.user = u;
+  renderAccount();
+  if (!u) return;
+  cloud.col = cloud.db.collection('users').doc(u.uid).collection('cards');
+  let first = true;
+  cloud.unsub = cloud.col.onSnapshot(snap => {
+    const remote = {};
+    snap.docs.forEach(d => { remote[d.id] = d.data(); });
+    let changed = false;
+    for (const [id, r] of Object.entries(remote)) {
+      const l = collection[id];
+      if (!r.name) continue;                                   // doc parcial (só preços)
+      if (!l || modOf(r) > modOf(l)) { collection[id] = r; changed = true; }
+      else if (modOf(r) === modOf(l) && (r.updated || 0) > (l.updated || 0)) { collection[id] = { ...l, usd: r.usd, eur: r.eur, updated: r.updated }; changed = true; }
+    }
+    if (first && !snap.metadata.fromCache) {                   // 1º sync: envia o que só existe aqui ou é mais novo
+      first = false;
+      for (const c of Object.values(collection)) if (!remote[c.id] || modOf(c) > modOf(remote[c.id])) { if (!c.modified) c.modified = modOf(c); pushCard(c.id); }
+    }
+    if (changed) { save(); renderAll(); }
+    $('#sync-state') && ($('#sync-state').textContent = snap.metadata.hasPendingWrites ? '⏳ sincronizando…' : '✅ sincronizado');
+  }, e => { $('#sync-state') && ($('#sync-state').textContent = '❌ ' + e.message); });
+}
+function renderAccount() {
+  const box = $('#account');
+  if (!cloud.ready) {
+    box.innerHTML = '<p class="hint">Login desativado: falta configurar o Firebase (veja o README, passo "Sincronização"). Seus dados continuam salvos só neste aparelho.</p>';
+    return;
+  }
+  if (cloud.user) {
+    box.innerHTML = `<div>Conectado como <b>${esc(cloud.user.email || cloud.user.displayName)}</b></div>
+      <div id="sync-state" class="hint">⏳ sincronizando…</div>
+      <button id="logout" class="sec">Sair</button>`;
+    $('#logout').onclick = async () => {
+      if (!confirm('Sair? As cartas continuam salvas na nuvem e voltam quando você entrar de novo.')) return;
+      await cloud.auth.signOut(); collection = {}; save(); renderAll();
+    };
+  } else {
+    box.innerHTML = `<button id="g-login">Entrar com Google</button>
+      <p class="hint">ou com e-mail:</p>
+      <input id="em" type="email" placeholder="e-mail" autocomplete="email">
+      <input id="pw" type="password" placeholder="senha (mín. 6)" autocomplete="current-password">
+      <div class="row"><button id="em-login">Entrar</button><button id="em-new" class="sec">Criar conta</button></div>
+      <p id="auth-err" class="status"></p>`;
+    const err = e => { $('#auth-err').textContent = '❌ ' + (e.message || e); };
+    $('#g-login').onclick = () => cloud.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err);
+    $('#em-login').onclick = () => cloud.auth.signInWithEmailAndPassword($('#em').value, $('#pw').value).catch(err);
+    $('#em-new').onclick = () => cloud.auth.createUserWithEmailAndPassword($('#em').value, $('#pw').value).catch(err);
+  }
+}
+
+// ---------- cartas faltantes ----------
+const hdr = () => settings.apiKey ? { 'X-Api-Key': settings.apiKey } : {};
+let setsList = null; const setCards = {};
+let missingSet = load('pk.missingSet', '');
+
+async function loadSets() {
+  try {
+    const res = await fetch('https://api.pokemontcg.io/v2/sets?select=id,name,series,printedTotal,total,releaseDate&orderBy=-releaseDate&pageSize=250', { headers: hdr() });
+    if (!res.ok) throw new Error(res.status);
+    setsList = (await res.json()).data;
+  } catch (e) { $('#set-select').innerHTML = '<option>Erro ao carregar sets (sem internet?)</option>'; return; }
+  const mine = {};
+  live().forEach(c => { mine[c.setId] = (mine[c.setId] || 0) + 1; });
+  const opt = s => `<option value="${esc(s.id)}">${esc(s.name)} (${esc(s.series)}) ${mine[s.id] ? '· tenho ' + mine[s.id] : ''}</option>`;
+  const mineSets = setsList.filter(s => mine[s.id]);
+  $('#set-select').innerHTML = '<option value="">— escolha um set —</option>' +
+    (mineSets.length ? `<optgroup label="Meus sets">${mineSets.map(opt).join('')}</optgroup>` : '') +
+    `<optgroup label="Todos os sets">${setsList.map(opt).join('')}</optgroup>`;
+  $('#set-select').value = missingSet;
+  if (missingSet) renderMissing();
+}
+async function fetchSetCards(id) {
+  if (setCards[id]) return setCards[id];
+  const all = [];
+  for (let page = 1; ; page++) {
+    const res = await fetch(`${API}?q=${encodeURIComponent('set.id:' + id)}&page=${page}&pageSize=250&select=${SELECT}`, { headers: hdr() });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const j = await res.json();
+    all.push(...j.data);
+    if (!j.data.length || all.length >= j.totalCount) break;
+  }
+  return (setCards[id] = all.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })));
+}
+async function renderMissing() {
+  const id = missingSet; if (!id || !setsList) return;
+  const sum = $('#missing-summary'), box = $('#missing');
+  if (!setCards[id]) { sum.textContent = '⏳ Carregando cartas do set…'; box.innerHTML = ''; }
+  let cards;
+  try { cards = await fetchSetCards(id); } catch (e) { sum.textContent = '❌ ' + e.message; return; }
+  if (id !== missingSet) return;
+  const secret = $('#m-secret').checked, showAll = $('#m-all').checked;
+  const inSet = cards.filter(c => secret || !c.set?.printedTotal || parseInt(c.number, 10) <= c.set.printedTotal || isNaN(parseInt(c.number, 10)));
+  const has = c => (collection[c.id]?.qty || 0) > 0;
+  const missing = inSet.filter(c => !has(c));
+  const owned = inSet.length - missing.length, pct = inSet.length ? Math.round(owned / inSet.length * 100) : 0;
+  const cost = missing.reduce((t, c) => t + (prices(c)[settings.currency] ?? 0), 0);
+  sum.innerHTML = `<b>${owned}/${inSet.length}</b> cartas (${pct}%) · faltam ${missing.length}<br>Custo estimado para completar: <b>${money(cost)}</b>
+    <div class="bar"><i style="width:${pct}%"></i></div>`;
+  window._results = { ...window._results, ...Object.fromEntries(cards.map(c => [c.id, c])) };
+  const list = showAll ? inSet : missing;
+  box.innerHTML = list.map(c => `<div class="c ${has(c) ? 'owned' : ''}">
+      <img src="${esc(c.images?.small)}" alt="${esc(c.name)}" loading="lazy">
+      <b>${esc(c.name)}</b><span class="m">#${esc(c.number)} · ${esc(c.rarity || '')}</span>
+      <span class="price">${money(prices(c)[settings.currency])}</span>
+      ${has(c) ? `<span class="m">Tenho ×${collection[c.id].qty}</span>` : ''}
+      <button data-add="${esc(c.id)}">+ Adicionar</button></div>`).join('') || '<p class="hint">🎉 Set completo!</p>';
+}
+$('#set-select').addEventListener('change', e => { missingSet = e.target.value; localStorage.setItem('pk.missingSet', JSON.stringify(missingSet)); renderMissing(); });
+$('#m-all').addEventListener('change', renderMissing);
+$('#m-secret').addEventListener('change', renderMissing);
+document.querySelector('nav').addEventListener('click', e => { if (e.target.dataset.tab === 'missing' && !setsList) loadSets(); });
+
 renderAll();
+initCloud();
