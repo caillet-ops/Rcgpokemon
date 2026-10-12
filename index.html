@@ -2,102 +2,148 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#cc0000">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<title>Minha Coleção Pokémon</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Minha Coleção Pokémon</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <h1>🎴 Coleção Pokémon</h1>
-  <div id="totals"></div>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff"/><path d="M2 12a10 10 0 0 1 20 0z" fill="#ff3e55"/><path d="M2 12h20" stroke="#0b0d14" stroke-width="2"/><circle cx="12" cy="12" r="3.2" fill="#fff" stroke="#0b0d14" stroke-width="2"/></svg>
+    <h1>Minha Coleção</h1>
+  </div>
+  <div id="hdr-value" class="chip"></div>
 </header>
 
-<nav>
-  <button data-tab="scan" class="active">📷 Adicionar</button>
-  <button data-tab="collection">📚 Coleção</button>
-  <button data-tab="dupes">♻️ Repetidas</button>
-  <button data-tab="missing">🔍 Faltantes</button>
-  <button data-tab="settings">⚙️ Mais</button>
-</nav>
-
 <main>
-  <section id="tab-scan" class="tab active">
-    <label class="photo-btn">
-      📷 Tirar / escolher foto da carta
-      <input type="file" id="photo" accept="image/*" capture="environment" hidden>
-    </label>
-    <img id="preview" alt="" hidden>
-    <p id="status" class="status"></p>
-
-    <form id="search-form">
-      <input id="q-name" placeholder="Nome (ex: Pikachu)" autocomplete="off">
-      <input id="q-number" placeholder="Nº (ex: 25/165)" autocomplete="off" inputmode="text">
-      <button type="submit">Buscar</button>
-    </form>
-    <div id="results" class="grid"></div>
-  </section>
-
-  <section id="tab-collection" class="tab">
+  <!-- COLEÇÃO -->
+  <section id="tab-collection" class="tab active">
+    <div id="stats" class="stats"></div>
     <div class="toolbar">
-      <input id="filter" type="search" placeholder="Filtrar por nome, set, raridade…">
-      <select id="sort">
-        <option value="added">Mais recentes</option>
+      <label class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="filter" type="search" placeholder="Buscar na coleção…">
+      </label>
+      <select id="sort" aria-label="Ordenar">
+        <option value="added">Recentes</option>
         <option value="name">Nome</option>
-        <option value="price">Preço ↓</option>
+        <option value="price">Preço</option>
         <option value="set">Set</option>
       </select>
     </div>
     <div id="collection" class="grid"></div>
   </section>
 
+  <!-- REPETIDAS -->
   <section id="tab-dupes" class="tab">
-    <p class="hint">Cartas que você tem em mais de 1 cópia. "Extras" = cópias além da primeira (candidatas a troca/venda).</p>
+    <h2 class="title">Repetidas</h2>
+    <p class="hint">Cartas com mais de 1 cópia. "Extras" são as cópias além da primeira — candidatas a troca ou venda.</p>
+    <div id="dupes-summary" class="summary"></div>
     <div id="dupes" class="grid"></div>
   </section>
 
-  <section id="tab-missing" class="tab">
-    <div class="toolbar">
-      <select id="set-select"><option>Carregando sets…</option></select>
+  <!-- ADICIONAR -->
+  <section id="tab-scan" class="tab">
+    <h2 class="title">Adicionar carta</h2>
+    <button id="open-cam" class="hero">
+      <span class="hero-ic"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+      <span><b>Escanear carta</b><small>Encaixe a carta na moldura e tire a foto</small></span>
+    </button>
+    <label class="link-btn">ou escolher uma foto da galeria<input type="file" id="photo" accept="image/*" hidden></label>
+    <input type="file" id="photo-native" accept="image/*" capture="environment" hidden>
+
+    <div id="scan-panel" class="scan-panel" hidden>
+      <canvas id="scan-thumb"></canvas>
+      <div>
+        <div id="status" class="status"></div>
+        <div id="read" class="reads"></div>
+      </div>
     </div>
-    <div class="row opts">
-      <label><input type="checkbox" id="m-all"> Mostrar também as que tenho</label>
-      <label><input type="checkbox" id="m-secret"> Incluir secretas</label>
+
+    <form id="search-form" class="search-form">
+      <input id="q-name" placeholder="Nome (ex: Dugtrio)" autocomplete="off" autocapitalize="words">
+      <input id="q-number" placeholder="Nº (ex: 104/197)" autocomplete="off">
+      <button type="submit" class="btn">Buscar</button>
+    </form>
+    <div id="results" class="grid"></div>
+  </section>
+
+  <!-- FALTANTES -->
+  <section id="tab-missing" class="tab">
+    <h2 class="title">Cartas faltantes</h2>
+    <select id="set-select" class="full"><option>Carregando sets…</option></select>
+    <div class="opts">
+      <label class="check"><input type="checkbox" id="m-all"> Mostrar também as que tenho</label>
+      <label class="check"><input type="checkbox" id="m-secret"> Incluir secretas</label>
     </div>
     <div id="missing-summary" class="summary"></div>
     <div id="missing" class="grid"></div>
   </section>
 
+  <!-- MAIS -->
   <section id="tab-settings" class="tab">
-
-    <h2>Preços</h2>
-    <button id="refresh-prices">🔄 Atualizar preços de toda a coleção</button>
-    <p id="refresh-status" class="status"></p>
-
-    <h2>Backup</h2>
-    <div class="row">
-      <button id="export-json">⬇️ Exportar JSON</button>
-      <button id="export-csv">⬇️ Exportar CSV</button>
-      <label class="btn">⬆️ Importar JSON<input type="file" id="import-json" accept=".json" hidden></label>
+    <h2 class="title">Mais</h2>
+    <div class="panel">
+      <h3>Preços</h3>
+      <div class="seg" id="currency-seg">
+        <button data-cur="usd">USD · TCGplayer</button>
+        <button data-cur="eur">EUR · Cardmarket</button>
+      </div>
+      <button id="refresh-prices" class="btn block">Atualizar preços da coleção</button>
+      <p id="refresh-status" class="hint"></p>
     </div>
-
-    <h2>API key (opcional)</h2>
-    <p class="hint">Funciona sem chave, mas com limite menor. Chave grátis em <a href="https://dev.pokemontcg.io" target="_blank" rel="noopener">dev.pokemontcg.io</a>.</p>
-    <input id="api-key" placeholder="X-Api-Key" autocomplete="off">
-    <h2>Moeda de exibição</h2>
-    <select id="currency">
-      <option value="usd">USD (TCGplayer)</option>
-      <option value="eur">EUR (Cardmarket)</option>
-    </select>
+    <div class="panel">
+      <h3>Backup</h3>
+      <p class="hint">Seus dados ficam só neste aparelho. Exporte de vez em quando.</p>
+      <div class="row">
+        <button id="export-json" class="btn ghost">Exportar JSON</button>
+        <button id="export-csv" class="btn ghost">Exportar CSV</button>
+        <label class="btn ghost">Importar JSON<input type="file" id="import-json" accept=".json" hidden></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>API key (opcional)</h3>
+      <p class="hint">Funciona sem chave. Uma chave grátis em <a href="https://dev.pokemontcg.io" target="_blank" rel="noopener">dev.pokemontcg.io</a> deixa as buscas mais estáveis.</p>
+      <input id="api-key" class="full" placeholder="X-Api-Key" autocomplete="off">
+    </div>
   </section>
 </main>
 
+<nav class="bar" id="nav">
+  <button data-go="collection" class="active"><svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg><span>Coleção</span></button>
+  <button data-go="dupes"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg><span>Repetidas</span></button>
+  <button data-go="scan" class="fab"><i><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></i><span>Adicionar</span></button>
+  <button data-go="missing"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Faltantes</span></button>
+  <button data-go="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Mais</span></button>
+</nav>
+
+<!-- CÂMERA COM MOLDURA -->
+<div id="cam" hidden>
+  <video id="cam-video" playsinline muted autoplay></video>
+  <div id="cam-frame"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+  <div class="cam-top">
+    <button id="cam-close" class="round" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <span>Encaixe a carta na moldura</span>
+    <button id="cam-torch" class="round" aria-label="Lanterna" hidden><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button>
+  </div>
+  <div class="cam-bottom">
+    <label class="round" aria-label="Galeria"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><input type="file" id="cam-photo" accept="image/*" hidden></label>
+    <button id="cam-shoot" class="shutter" aria-label="Tirar foto"></button>
+    <span class="round ghost"></span>
+  </div>
+  <p class="cam-tip">Boa luz, sem reflexo, carta reta e preenchendo a moldura</p>
+</div>
+
 <dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="app.js"></script>
