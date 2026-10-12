@@ -9,7 +9,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // ---------- estado (salvo no aparelho) ----------
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 let collection = load('pk.collection', {});          // id -> carta
-let settings = { apiKey: '', currency: 'usd', ...load('pk.settings', {}) };
+let settings = { apiKey: '', currency: 'brl', ...load('pk.settings', {}) };
+if (!settings.v) { settings.v = 2; settings.currency = 'brl'; }       // novo padrão: reais
+let fx = { USD: 5.5, EUR: 6, at: 0, ...load('pk.fx', {}) };           // câmbio para BRL
 const save = () => { try { localStorage.setItem('pk.collection', JSON.stringify(collection)); localStorage.setItem('pk.settings', JSON.stringify(settings)); } catch { toast('Sem espaço para salvar!'); } };
 const live = () => Object.values(collection).filter(c => c.qty > 0);
 const known = {};                                    // id -> carta da API (resultados de busca)
@@ -65,8 +67,33 @@ function snapshot(c) {
     ...prices(c), updated: Date.now(),
   };
 }
-const price = c => c[settings.currency];
+/** Preço na moeda escolhida. R$ = TCGplayer (USD) × câmbio; sem USD, usa Cardmarket (EUR) × câmbio. */
+const conv = p => settings.currency === 'brl'
+  ? (p.usd != null ? p.usd * fx.USD : p.eur != null ? p.eur * fx.EUR : null)
+  : p[settings.currency];
+const price = c => conv(c);
 const money = v => v == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: settings.currency.toUpperCase() }).format(v);
+
+async function loadRates() {
+  if (Date.now() - fx.at < 6 * 3600e3) return;                          // câmbio com menos de 6h
+  const get = async u => { const r = await fetch(u); if (!r.ok) throw 0; return r.json(); };
+  let USD, EUR;
+  try {
+    const j = await get('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL');
+    USD = +j.USDBRL.bid; EUR = +j.EURBRL.bid;
+  } catch {
+    try { const j = (await get('https://open.er-api.com/v6/latest/USD')).rates; USD = j.BRL; EUR = j.BRL / j.EUR; } catch { return; }
+  }
+  if (!(USD > 0 && EUR > 0)) return;
+  fx = { USD, EUR, at: Date.now() };
+  try { localStorage.setItem('pk.fx', JSON.stringify(fx)); } catch {}
+  renderAll(); renderFx();
+}
+function renderFx() {
+  $('#fx-info').textContent = fx.at
+    ? `Câmbio: US$ 1 = R$ ${fx.USD.toFixed(2)} · € 1 = R$ ${fx.EUR.toFixed(2)} (atualizado ${new Date(fx.at).toLocaleString('pt-BR')})`
+    : 'Câmbio estimado (sem conexão com o serviço de cotação).';
+}
 
 // ---------- coleção ----------
 function addCard(apiCard) {
@@ -173,7 +200,7 @@ function renderResults(cards, name) {
   if (!cards.length) { box.innerHTML = empty('Nenhuma carta encontrada. Ajuste o nome ou o número e busque de novo.'); return; }
   const best = name && sim(name, cards[0].name) >= .75 ? 0 : (cards.length === 1 ? 0 : -1);
   box.innerHTML = cards.map((c, i) => {
-    const p = prices(c)[settings.currency], have = collection[c.id]?.qty || 0;
+    const p = conv(prices(c)), have = collection[c.id]?.qty || 0;
     return `<article class="card ${i === best ? 'best' : ''}">
       ${artHtml(c, `${i === best ? '<span class="tag">Melhor</span>' : ''}${have ? `<span class="badge">tenho ×${have}</span>` : ''}<span class="pchip">${money(p)}</span>`)}
       <div class="meta"><b>${esc(c.name)}</b><small>${esc(c.set?.name)} · #${esc(c.number)}/${esc(c.set?.printedTotal)}</small></div>
@@ -336,6 +363,7 @@ function showDetail(id) {
     <img src="${esc(cur.imgLarge || cur.img)}" alt="">
     <h3>${esc(cur.name)}</h3><div class="sub">${esc(cur.setName)} · #${esc(cur.number)} · ${esc(cur.rarity)}</div>
     <dl>
+      ${settings.currency === 'brl' ? `<dt>Em reais</dt><dd>${money(price(cur))}</dd>` : ''}
       <dt>TCGplayer (USD)</dt><dd>${cur.usd != null ? '$' + cur.usd.toFixed(2) : '—'} ${cur.tcgUrl ? `<a href="${esc(cur.tcgUrl)}" target="_blank" rel="noopener">ver</a>` : ''}</dd>
       <dt>Cardmarket (EUR)</dt><dd>${cur.eur != null ? '€' + cur.eur.toFixed(2) : '—'} ${cur.cmUrl ? `<a href="${esc(cur.cmUrl)}" target="_blank" rel="noopener">ver</a>` : ''}</dd>
       ${own ? `<dt>Quantidade</dt><dd>${own.qty}</dd><dt>Preço atualizado</dt><dd>${new Date(own.updated).toLocaleDateString('pt-BR')}</dd>` : ''}
@@ -402,11 +430,11 @@ async function renderMissing() {
   const has = c => (collection[c.id]?.qty || 0) > 0;
   const missing = inSet.filter(c => !has(c));
   const owned = inSet.length - missing.length, pct = inSet.length ? Math.round(owned / inSet.length * 100) : 0;
-  const cost = missing.reduce((t, c) => t + (prices(c)[settings.currency] ?? 0), 0);
+  const cost = missing.reduce((t, c) => t + (conv(prices(c)) ?? 0), 0);
   sum.innerHTML = `<b>${owned}/${inSet.length}</b> cartas (${pct}%) · faltam <b>${missing.length}</b><br>Custo estimado para completar: <b>${money(cost)}</b><div class="bar-p"><i style="width:${pct}%"></i></div>`;
   cards.forEach(c => { known[c.id] = c; });
   box.innerHTML = (showAll ? inSet : missing).map(c => `<article class="card ${has(c) ? 'owned' : ''}">
-      ${artHtml(c, `${has(c) ? `<span class="badge">×${collection[c.id].qty}</span>` : ''}<span class="pchip">${money(prices(c)[settings.currency])}</span>`)}
+      ${artHtml(c, `${has(c) ? `<span class="badge">×${collection[c.id].qty}</span>` : ''}<span class="pchip">${money(conv(prices(c)))}</span>`)}
       <div class="meta"><b>${esc(c.name)}</b><small>#${esc(c.number)} · ${esc(c.rarity || '')}</small></div>
       <button class="btn ${has(c) ? 'ghost' : ''}" data-add="${esc(c.id)}">${has(c) ? '+ outra cópia' : 'Adicionar'}</button></article>`).join('') || empty('🎉 Set completo!');
 }
@@ -480,4 +508,6 @@ $('#api-key').addEventListener('change', e => { settings.apiKey = e.target.value
 
 syncCurrency();
 renderAll();
+renderFx();
+loadRates();
 navigator.storage?.persist?.();                      // pede ao navegador para não apagar os dados salvos
