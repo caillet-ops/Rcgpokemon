@@ -49,7 +49,7 @@ const money = v => v == null ? '—' : new Intl.NumberFormat('pt-BR', { style: '
 // ---------- coleção ----------
 const live = () => Object.values(collection).filter(c => c.qty > 0);
 const clean = o => JSON.parse(JSON.stringify(o));
-function touch(id) { collection[id].modified = Date.now(); save(); pushCard(id); }
+function touch(id) { collection[id].modified = Date.now(); save(); }
 function addCard(apiCard_) {
   const s = snapshot(apiCard_);
   const cur = collection[s.id];
@@ -195,7 +195,7 @@ async function refreshPrices() {
   let ok = 0;
   for (const [i, id] of ids.entries()) {
     st.textContent = `Atualizando ${i + 1}/${ids.length}…`;
-    try { const n = snapshot(await apiCard(id)); Object.assign(collection[id], { usd: n.usd, eur: n.eur, updated: n.updated, tcgUrl: n.tcgUrl, cmUrl: n.cmUrl }); pushCard(id, true); ok++; } catch {}
+    try { const n = snapshot(await apiCard(id)); Object.assign(collection[id], { usd: n.usd, eur: n.eur, updated: n.updated, tcgUrl: n.tcgUrl, cmUrl: n.cmUrl }); ok++; } catch {}
   }
   save(); renderAll(); st.textContent = `✅ ${ok}/${ids.length} cartas atualizadas.`;
 }
@@ -242,77 +242,6 @@ $('#api-key').value = settings.apiKey; $('#currency').value = settings.currency;
 $('#api-key').addEventListener('change', e => { settings.apiKey = e.target.value.trim(); save(); });
 $('#currency').addEventListener('change', e => { settings.currency = e.target.value; save(); renderAll(); });
 
-
-// ---------- login + sincronização (Firebase) ----------
-const cloud = { user: null, col: null, unsub: null, ready: false };
-const modOf = c => c.modified || c.added || 0;
-
-function pushCard(id, pricesOnly) {
-  if (!cloud.user || !collection[id]) return;
-  const c = collection[id];
-  const data = pricesOnly ? { usd: c.usd ?? null, eur: c.eur ?? null, updated: c.updated } : c;
-  cloud.col.doc(id).set(clean(data), { merge: true }).catch(e => console.warn('sync', e));
-}
-function initCloud() {
-  const cfg = window.FIREBASE_CONFIG;
-  if (!cfg || typeof firebase === 'undefined') { renderAccount(); return; }
-  firebase.initializeApp(cfg);
-  cloud.auth = firebase.auth(); cloud.db = firebase.firestore();
-  cloud.db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-  cloud.auth.onAuthStateChanged(onUser);
-  cloud.ready = true; renderAccount();
-}
-function onUser(u) {
-  cloud.unsub?.(); cloud.unsub = null; cloud.user = u;
-  renderAccount();
-  if (!u) return;
-  cloud.col = cloud.db.collection('users').doc(u.uid).collection('cards');
-  let first = true;
-  cloud.unsub = cloud.col.onSnapshot(snap => {
-    const remote = {};
-    snap.docs.forEach(d => { remote[d.id] = d.data(); });
-    let changed = false;
-    for (const [id, r] of Object.entries(remote)) {
-      const l = collection[id];
-      if (!r.name) continue;                                   // doc parcial (só preços)
-      if (!l || modOf(r) > modOf(l)) { collection[id] = r; changed = true; }
-      else if (modOf(r) === modOf(l) && (r.updated || 0) > (l.updated || 0)) { collection[id] = { ...l, usd: r.usd, eur: r.eur, updated: r.updated }; changed = true; }
-    }
-    if (first && !snap.metadata.fromCache) {                   // 1º sync: envia o que só existe aqui ou é mais novo
-      first = false;
-      for (const c of Object.values(collection)) if (!remote[c.id] || modOf(c) > modOf(remote[c.id])) { if (!c.modified) c.modified = modOf(c); pushCard(c.id); }
-    }
-    if (changed) { save(); renderAll(); }
-    $('#sync-state') && ($('#sync-state').textContent = snap.metadata.hasPendingWrites ? '⏳ sincronizando…' : '✅ sincronizado');
-  }, e => { $('#sync-state') && ($('#sync-state').textContent = '❌ ' + e.message); });
-}
-function renderAccount() {
-  const box = $('#account');
-  if (!cloud.ready) {
-    box.innerHTML = '<p class="hint">Login desativado: falta configurar o Firebase (veja o README, passo "Sincronização"). Seus dados continuam salvos só neste aparelho.</p>';
-    return;
-  }
-  if (cloud.user) {
-    box.innerHTML = `<div>Conectado como <b>${esc(cloud.user.email || cloud.user.displayName)}</b></div>
-      <div id="sync-state" class="hint">⏳ sincronizando…</div>
-      <button id="logout" class="sec">Sair</button>`;
-    $('#logout').onclick = async () => {
-      if (!confirm('Sair? As cartas continuam salvas na nuvem e voltam quando você entrar de novo.')) return;
-      await cloud.auth.signOut(); collection = {}; save(); renderAll();
-    };
-  } else {
-    box.innerHTML = `<button id="g-login">Entrar com Google</button>
-      <p class="hint">ou com e-mail:</p>
-      <input id="em" type="email" placeholder="e-mail" autocomplete="email">
-      <input id="pw" type="password" placeholder="senha (mín. 6)" autocomplete="current-password">
-      <div class="row"><button id="em-login">Entrar</button><button id="em-new" class="sec">Criar conta</button></div>
-      <p id="auth-err" class="status"></p>`;
-    const err = e => { $('#auth-err').textContent = '❌ ' + (e.message || e); };
-    $('#g-login').onclick = () => cloud.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err);
-    $('#em-login').onclick = () => cloud.auth.signInWithEmailAndPassword($('#em').value, $('#pw').value).catch(err);
-    $('#em-new').onclick = () => cloud.auth.createUserWithEmailAndPassword($('#em').value, $('#pw').value).catch(err);
-  }
-}
 
 // ---------- cartas faltantes ----------
 const hdr = () => settings.apiKey ? { 'X-Api-Key': settings.apiKey } : {};
@@ -377,4 +306,4 @@ $('#m-secret').addEventListener('change', renderMissing);
 document.querySelector('nav').addEventListener('click', e => { if (e.target.dataset.tab === 'missing' && !setsList) loadSets(); });
 
 renderAll();
-initCloud();
+navigator.storage?.persist?.();   // pede ao navegador para não apagar os dados salvos

@@ -23,7 +23,7 @@
   <button data-tab="collection">📚 Coleção</button>
   <button data-tab="dupes">♻️ Repetidas</button>
   <button data-tab="missing">🔍 Faltantes</button>
-  <button data-tab="settings">⚙️ Conta</button>
+  <button data-tab="settings">⚙️ Mais</button>
 </nav>
 
 <main>
@@ -74,8 +74,6 @@
   </section>
 
   <section id="tab-settings" class="tab">
-    <h2>Conta e sincronização</h2>
-    <div id="account"></div>
 
     <h2>Preços</h2>
     <button id="refresh-prices">🔄 Atualizar preços de toda a coleção</button>
@@ -101,11 +99,7 @@
 
 <dialog id="dlg"></dialog>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-<script src="firebase-config.js"></script>
 <script src="app.js"></script>
 <script>if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))</script>
 </body>

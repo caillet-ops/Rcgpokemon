@@ -6,7 +6,7 @@ Gerenciador de coleção de cartas Pokémon (PWA — instala no celular, sem ser
 - **Preços**: TCGplayer (USD) e Cardmarket (EUR), total da coleção e atualização em massa.
 - **Repetidas**: quantidade por carta; aba mostra extras e seu valor.
 - **Faltantes**: escolha um set e veja o que falta, % de conclusão e custo estimado para completar.
-- **Login + sincronização**: Google ou e-mail, via Firebase; funciona offline e sincroniza depois.
+- **Dados locais**: salvos no celular, funciona offline.
 - **Backup**: JSON/CSV.
 
 ## 1. Rodar no celular (GitHub Pages)
@@ -18,17 +18,9 @@ Gerenciador de coleção de cartas Pokémon (PWA — instala no celular, sem ser
 
 A câmera abre ao tocar em "Tirar / escolher foto" (precisa de HTTPS, que o Pages já fornece).
 
-## 2. Sincronização (Firebase, plano gratuito)
-1. [console.firebase.google.com](https://console.firebase.google.com) → **Adicionar projeto**.
-2. **Build → Authentication → Começar**; ative **Google** e **E-mail/senha**.
-3. **Build → Firestore Database → Criar banco** (modo produção). Em **Regras**, cole o conteúdo de `firestore.rules` e publique.
-4. **Configurações do projeto → Seus apps → Web (`</>`)**; copie o objeto `firebaseConfig` para `firebase-config.js` (`window.FIREBASE_CONFIG = {...}`).
-5. **Authentication → Settings → Authorized domains**: adicione `<seu-usuario>.github.io`.
-6. Commit/push na `main`. Em **Conta**, entre com Google ou e-mail em cada aparelho.
-
-A config web do Firebase não é segredo; quem protege os dados são as regras do Firestore (cada usuário só acessa `users/<seu-uid>/cards`).
-
-Sincronização: por carta, vence a alteração mais recente. Ao entrar pela primeira vez, as cartas locais sobem para a nuvem.
+## 2. Onde ficam os dados
+Tudo é salvo no próprio celular (`localStorage`), sem conta nem servidor. Cada aparelho tem a sua coleção.
+Limpar os dados do navegador apaga a coleção, então use **Mais → Exportar JSON** de vez em quando; para levar a coleção a outro aparelho, exporte lá e **Importar JSON** no novo (as quantidades são somadas).
 
 ## Rodar local
 ```

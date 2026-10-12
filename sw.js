@@ -1,6 +1,6 @@
-const VERSION = 'v2';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
-const CDN = ['cdn.jsdelivr.net', 'www.gstatic.com', 'images.pokemontcg.io', 'tessdata.projectnaptha.com'];
+const VERSION = 'v3';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CDN = ['cdn.jsdelivr.net', 'images.pokemontcg.io', 'tessdata.projectnaptha.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -8,7 +8,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// App e CDNs: devolve do cache e atualiza em segundo plano. API de dados/Firebase: direto na rede.
+// App e CDNs: devolve do cache e atualiza em segundo plano. API de dados: direto na rede.
 self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== 'GET' || !(u.origin === location.origin || CDN.includes(u.hostname))) return;
